@@ -1,0 +1,101 @@
+{
+  "versao": "2.5",
+  "data": "01/10/2026",
+  "novidades": [
+    "🔄 Novo: Atualizar sistema pelo menu 🔧 Ferramentas, com cópia de segurança e opção de voltar.",
+    "Aviso ao abrir a planilha quando houver versão nova.",
+    "O painel confere e instala os gatilhos sozinho."
+  ],
+  "arquivos": [
+    {
+      "nome": "Código",
+      "tipo": "SERVER_JS",
+      "caminho": "codigo/Codigo.gs"
+    },
+    {
+      "nome": "Atualizador",
+      "tipo": "SERVER_JS",
+      "caminho": "codigo/Atualizador.gs"
+    },
+    {
+      "nome": "Code_SIGTAP",
+      "tipo": "SERVER_JS",
+      "caminho": "codigo/Code_SIGTAP.gs"
+    },
+    {
+      "nome": "Validacao",
+      "tipo": "SERVER_JS",
+      "caminho": "codigo/Validacao.gs"
+    },
+    {
+      "nome": "AtualizarSIGTAP",
+      "tipo": "SERVER_JS",
+      "caminho": "codigo/AtualizarSIGTAP.gs"
+    },
+    {
+      "nome": "SugestoesSIGTAP",
+      "tipo": "SERVER_JS",
+      "caminho": "codigo/SugestoesSIGTAP.gs"
+    },
+    {
+      "nome": "Modelo",
+      "tipo": "SERVER_JS",
+      "caminho": "codigo/Modelo.gs"
+    },
+    {
+      "nome": "Assistente",
+      "tipo": "SERVER_JS",
+      "caminho": "codigo/Assistente.gs"
+    },
+    {
+      "nome": "ExtratorPDFDireto",
+      "tipo": "SERVER_JS",
+      "caminho": "codigo/ExtratorPDFDireto.gs"
+    },
+    {
+      "nome": "PainelAPAC",
+      "tipo": "HTML",
+      "caminho": "codigo/PainelAPAC.html"
+    },
+    {
+      "nome": "DialogoSigtap",
+      "tipo": "HTML",
+      "caminho": "codigo/DialogoSigtap.html"
+    },
+    {
+      "nome": "BuscaSIGTAP",
+      "tipo": "HTML",
+      "caminho": "codigo/BuscaSIGTAP.html"
+    },
+    {
+      "nome": "TesteUpload",
+      "tipo": "HTML",
+      "caminho": "codigo/TesteUpload.html"
+    },
+    {
+      "nome": "DialogoConferencia",
+      "tipo": "HTML",
+      "caminho": "codigo/DialogoConferencia.html"
+    },
+    {
+      "nome": "DialogoAtualizarSigtap",
+      "tipo": "HTML",
+      "caminho": "codigo/DialogoAtualizarSigtap.html"
+    },
+    {
+      "nome": "DialogoAssistente",
+      "tipo": "HTML",
+      "caminho": "codigo/DialogoAssistente.html"
+    },
+    {
+      "nome": "DialogoAtualizador",
+      "tipo": "HTML",
+      "caminho": "codigo/DialogoAtualizador.html"
+    },
+    {
+      "nome": "appsscript",
+      "tipo": "JSON",
+      "caminho": "codigo/appsscript.json"
+    }
+  ]
+}

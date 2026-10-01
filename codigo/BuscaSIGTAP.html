@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #F4F1EA;
+    color: #1F3D32;
+    padding: 12px;
+  }
+  h3 {
+    background: #1F3D32;
+    color: #F4F1EA;
+    padding: 10px 12px;
+    margin: -12px -12px 12px -12px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+  #campoBusca {
+    width: 100%;
+    padding: 8px 10px;
+    border: 2px solid #1F3D32;
+    border-radius: 4px;
+    font-size: 13px;
+    background: #fff;
+    color: #1F3D32;
+    outline: none;
+    margin-bottom: 8px;
+  }
+  #campoBusca:focus { border-color: #2e7d5e; }
+  #campoBusca:disabled { background: #e0e0e0; cursor: wait; }
+  #status {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 8px;
+    min-height: 16px;
+  }
+  #status.erro { color: #c0392b; font-weight: bold; }
+  #status.ok   { color: #2e7d5e; }
+  #resultados {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: calc(100vh - 130px);
+    overflow-y: auto;
+  }
+  .item {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-left: 4px solid #1F3D32;
+    border-radius: 4px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .item:hover { background: #e8f0ec; border-left-color: #2e7d5e; }
+  .codigo {
+    font-size: 11px;
+    font-weight: bold;
+    color: #2e7d5e;
+    font-family: monospace;
+    letter-spacing: 1px;
+  }
+  .nome {
+    font-size: 12px;
+    color: #1F3D32;
+    margin-top: 2px;
+  }
+  .linha {
+    font-size: 10px;
+    color: #999;
+    margin-top: 2px;
+  }
+  .nenhum {
+    text-align: center;
+    color: #999;
+    font-size: 12px;
+    padding: 20px;
+  }
+  .carregando {
+    text-align: center;
+    color: #2e7d5e;
+    font-size: 12px;
+    padding: 20px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<h3>🔍 Busca SIGTAP</h3>
+<input type="text" id="campoBusca" placeholder="Aguardando dados..." disabled>
+<div id="status">⏳ Carregando tabela SIGTAP...</div>
+<div id="resultados"><div class="carregando">Carregando procedimentos...</div></div>
+
+<script>
+  var todosRegistros = [];
+  var timerBusca = null;
+  var carregado = false;
+
+  function iniciarCarregamento() {
+    google.script.run
+      .withSuccessHandler(function(dados) {
+        if (!dados || dados.length === 0) {
+          document.getElementById('status').textContent = '⚠️ Nenhum dado retornado. Verifique o nome da aba.';
+          document.getElementById('status').className = 'erro';
+          document.getElementById('resultados').innerHTML = '';
+          return;
+        }
+        todosRegistros = dados;
+        carregado = true;
+        document.getElementById('campoBusca').disabled = false;
+        document.getElementById('campoBusca').placeholder = 'Digite o nome ou código...';
+        document.getElementById('campoBusca').focus();
+        document.getElementById('status').textContent = '✅ ' + todosRegistros.length + ' procedimentos carregados.';
+        document.getElementById('status').className = 'ok';
+        document.getElementById('resultados').innerHTML = '';
+      })
+      .withFailureHandler(function(err) {
+        document.getElementById('status').textContent = '❌ Erro: ' + err.message;
+        document.getElementById('status').className = 'erro';
+        document.getElementById('resultados').innerHTML =
+          '<div class="nenhum">Falha ao carregar.<br>Verifique o Apps Script.</div>';
+        // Botão para tentar novamente
+        var btn = document.createElement('button');
+        btn.textContent = '🔄 Tentar novamente';
+        btn.style.cssText = 'margin:12px auto;display:block;padding:8px 16px;' +
+          'background:#1F3D32;color:#F4F1EA;border:none;border-radius:4px;cursor:pointer;font-size:12px;';
+        btn.onclick = function() {
+          document.getElementById('status').textContent = '⏳ Tentando novamente...';
+          document.getElementById('status').className = '';
+          document.getElementById('resultados').innerHTML = '<div class="carregando">Carregando...</div>';
+          iniciarCarregamento();
+        };
+        document.getElementById('resultados').appendChild(btn);
+      })
+      .buscarTodosSIGTAP();
+  }
+
+  // Inicia ao abrir o sidebar
+  iniciarCarregamento();
+
+  document.getElementById('campoBusca').addEventListener('input', function() {
+    if (!carregado) return;
+    clearTimeout(timerBusca);
+    timerBusca = setTimeout(filtrar, 200);
+  });
+
+  function filtrar() {
+    var termo = document.getElementById('campoBusca').value.trim().toLowerCase();
+    var div = document.getElementById('resultados');
+
+    if (termo.length < 2) {
+      div.innerHTML = '';
+      document.getElementById('status').textContent = '✅ ' + todosRegistros.length + ' procedimentos carregados.';
+      document.getElementById('status').className = 'ok';
+      return;
+    }
+
+    var termos = termo.split(' ').filter(function(t) { return t.length > 0; });
+
+    var encontrados = todosRegistros.filter(function(r) {
+      var texto = (r[0] + ' ' + r[1]).toLowerCase();
+      return termos.every(function(t) { return texto.indexOf(t) !== -1; });
+    });
+
+    document.getElementById('status').textContent =
+      encontrados.length + ' resultado(s) para "' + termo + '"';
+    document.getElementById('status').className = encontrados.length > 0 ? 'ok' : '';
+
+    if (encontrados.length === 0) {
+      div.innerHTML = '<div class="nenhum">Nenhum procedimento encontrado.</div>';
+      return;
+    }
+
+    var mostrar = encontrados.slice(0, 50);
+    div.innerHTML = mostrar.map(function(r) {
+      return '<div class="item" onclick="navegar(' + r[2] + ')">' +
+        '<div class="codigo">' + r[0] + '</div>' +
+        '<div class="nome">' + r[1] + '</div>' +
+        '<div class="linha">Linha ' + r[2] + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function navegar(linha) {
+    google.script.run
+      .withSuccessHandler(function() {})
+      .withFailureHandler(function(err) {
+        alert('Erro ao navegar: ' + err.message);
+      })
+      .navegarParaLinha(linha);
+  }
+</script>
+</body>
+</html>

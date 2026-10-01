@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #1F2937; margin: 0; padding: 4px 12px 12px; }
+  .versoes { display: flex; gap: 10px; margin-bottom: 12px; }
+  .caixa { flex: 1; border: 1px solid #D5DEE8; border-radius: 8px; padding: 10px; text-align: center; background: #F5F7FA; }
+  .caixa .rot { font-size: 10px; font-weight: bold; color: #5B6776; text-transform: uppercase; letter-spacing: .4px; }
+  .caixa .num { font-size: 22px; font-weight: bold; color: #1F4E79; margin-top: 4px; }
+  .msg { border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.5; margin-bottom: 12px; }
+  .info  { background: #EAF2FB; border: 1px solid #BFD6EE; color: #1F4E79; }
+  .ok    { background: #E6F4EC; border: 1px solid #B7DEC8; color: #186B40; }
+  .erro  { background: #FCEBEB; border: 1px solid #F1C2C2; color: #A32D2D; }
+  .aviso { background: #FFF6E0; border: 1px solid #F0D9A0; color: #7A5200; }
+  ul { margin: 6px 0 0 18px; padding: 0; }
+  button { width: 100%; padding: 11px; font-size: 13px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 6px; }
+  .principal { background: #1F4E79; color: #fff; }
+  .secundario { background: #fff; color: #A32D2D; border: 1.5px solid #A32D2D; }
+  button:disabled { background: #9AA7B5; color: #fff; border-color: #9AA7B5; cursor: wait; }
+  a { color: #1F4E79; font-weight: bold; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #BFD6EE; border-top-color: #1F4E79; border-radius: 50%; animation: g .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes g { to { transform: rotate(360deg); } }
+  .oculto { display: none; }
+</style>
+</head>
+<body>
+
+  <div class="versoes">
+    <div class="caixa"><div class="rot">Esta planilha</div><div class="num" id="local">…</div></div>
+    <div class="caixa"><div class="rot">Versão oficial</div><div class="num" id="remota">…</div></div>
+  </div>
+
+  <div id="estado" class="msg info"><span class="spinner"></span>Conferindo a versão oficial…</div>
+
+  <button id="btn-atualizar" class="principal oculto" onclick="atualizar()">🔄 Atualizar agora</button>
+
+  <div class="msg aviso" style="margin-top:12px">
+    <b>Primeira vez?</b> A atualização precisa da chave <b>"API do Google Apps Script"</b> ligada na sua conta:
+    <a id="link-chave" href="#" target="_blank" rel="noopener">abrir configurações</a> ▸ ligar a chave ▸ voltar aqui.
+    <br><small>Só o código é trocado. Dados, pacientes, código de acesso e pastas não são tocados.</small>
+  </div>
+
+  <button id="btn-voltar" class="secundario oculto" onclick="voltar()">↩️ Voltar para a versão anterior</button>
+
+  <div id="resultado"></div>
+
+<script>
+  function el(id) { return document.getElementById(id); }
+  function esc(t) { var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+  function travar(sim) { el('btn-atualizar').disabled = sim; el('btn-voltar').disabled = sim; }
+
+  google.script.run
+    .withSuccessHandler(function(i) {
+      el('local').textContent  = 'v' + i.local;
+      el('remota').textContent = i.remota ? 'v' + i.remota : '—';
+      el('link-chave').href = i.urlChave;
+
+      if (i.erro) {
+        el('estado').className = 'msg erro';
+        el('estado').innerHTML = '❌ ' + esc(i.erro);
+      } else if (i.haNova) {
+        el('estado').className = 'msg info';
+        el('estado').innerHTML = '🆕 <b>Existe uma versão nova</b>' + (i.data ? ' (' + esc(i.data) + ')' : '') + '.' +
+          (i.novidades.length ? '<ul>' + i.novidades.map(function(n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '');
+        el('btn-atualizar').classList.remove('oculto');
+      } else {
+        el('estado').className = 'msg ok';
+        el('estado').innerHTML = '✅ Esta planilha já está na versão mais recente.';
+      }
+      if (i.backup) {
+        el('btn-voltar').classList.remove('oculto');
+        el('btn-voltar').textContent = '↩️ Voltar para a versão anterior (v' + i.backup + ')';
+      }
+    })
+    .withFailureHandler(function(e) {
+      el('estado').className = 'msg erro';
+      el('estado').innerHTML = '❌ ' + esc(e.message);
+    })
+    .infoAtualizacao();
+
+  function atualizar() {
+    if (!confirm('Atualizar o código desta planilha agora?\n\nUma cópia do código atual será guardada no Drive para você poder voltar.')) return;
+    travar(true);
+    el('resultado').innerHTML = '<div class="msg info"><span class="spinner"></span>Baixando e instalando… pode levar até 1 minuto.</div>';
+    google.script.run
+      .withSuccessHandler(function(r) {
+        el('resultado').innerHTML = '<div class="msg ok">🎉 <b>Atualizado de v' + esc(r.de) + ' para v' + esc(r.para) + '.</b><br>' +
+          'Arquivos trocados: ' + esc(r.arquivos.join(', ')) + '.<br>' +
+          'Cópia de segurança: ' + esc(r.backup) + '.<br><br>' +
+          '<b>Feche esta janela e recarregue a planilha (F5).</b></div>';
+        el('btn-atualizar').classList.add('oculto');
+      })
+      .withFailureHandler(function(e) {
+        travar(false);
+        el('resultado').innerHTML = '<div class="msg erro">❌ ' + esc(e.message) + '</div>';
+      })
+      .aplicarAtualizacao();
+  }
+
+  function voltar() {
+    if (!confirm('Voltar o código para a versão anterior?')) return;
+    travar(true);
+    el('resultado').innerHTML = '<div class="msg info"><span class="spinner"></span>Voltando a versão anterior…</div>';
+    google.script.run
+      .withSuccessHandler(function(r) {
+        el('resultado').innerHTML = '<div class="msg ok">↩️ Código voltou para a v' + esc(r.versao) + '.<br><b>Feche esta janela e recarregue a planilha (F5).</b></div>';
+        el('btn-voltar').classList.add('oculto');
+      })
+      .withFailureHandler(function(e) {
+        travar(false);
+        el('resultado').innerHTML = '<div class="msg erro">❌ ' + esc(e.message) + '</div>';
+      })
+      .voltarVersaoAnterior();
+  }
+</script>
+</body>
+</html>

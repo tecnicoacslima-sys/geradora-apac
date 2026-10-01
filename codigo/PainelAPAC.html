@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    background: #EDF1F6;
+    color: #1F2937;
+    font-size: 13px;
+  }
+
+  /* ---------- Cabeçalho ---------- */
+  .topo {
+    background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
+    color: #fff;
+    padding: 16px 16px 14px;
+    border-bottom: 4px solid #2E75B6;
+  }
+  .topo h1 { font-size: 16px; font-weight: 700; letter-spacing: .3px; }
+  .topo p  { font-size: 11px; color: #D6E4F2; margin-top: 2px; }
+
+  .conteudo { padding: 14px; }
+
+  /* ---------- Cartão do paciente ---------- */
+  .cartao {
+    background: #fff;
+    border: 1px solid #D5DEE8;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  .cartao .rotulo {
+    font-size: 9px; font-weight: 700; color: #5B6776;
+    letter-spacing: .6px; text-transform: uppercase;
+  }
+  .cartao .nome {
+    font-size: 13px; font-weight: 700; color: #1F4E79;
+    margin-top: 4px; padding-right: 26px; word-break: break-word;
+  }
+  .cartao .detalhe { font-size: 11px; color: #5B6776; margin-top: 3px; word-break: break-word; }
+  .cartao .vazio   { font-size: 12px; color: #8A96A5; margin-top: 4px; font-style: italic; }
+  .btn-atualizar {
+    position: absolute; top: 8px; right: 8px;
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 1px solid #D5DEE8; background: #F5F7FA;
+    cursor: pointer; font-size: 12px; line-height: 22px;
+  }
+  .btn-atualizar:hover { background: #EAF2FB; }
+
+  /* ---------- Busca de paciente cadastrado ---------- */
+  .busca input {
+    width: 100%; margin-top: 7px;
+    padding: 8px 10px; font-size: 12.5px; font-family: inherit;
+    border: 1.5px solid #2E75B6; border-radius: 8px; background: #EAF2FB;
+    outline: none; color: #1F2937;
+  }
+  .busca input:focus { background: #fff; }
+  .busca .aviso { font-size: 11px; color: #5B6776; margin-top: 7px; }
+  .resultado {
+    border-top: 1px solid #EDF1F6; padding: 8px 0 2px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .resultado:first-child { border-top: none; }
+  .resultado .info { flex: 1; min-width: 0; }
+  .resultado .info b { display: block; font-size: 11.5px; color: #1F4E79; word-break: break-word; }
+  .resultado .info span { display: block; font-size: 10.5px; color: #5B6776; margin-top: 1px; }
+  .resultado button {
+    border: none; border-radius: 7px; padding: 6px 9px;
+    background: linear-gradient(180deg, #3B82C4, #2E6DA8); color: #fff;
+    font-weight: 700; font-size: 11px; cursor: pointer; font-family: inherit;
+    box-shadow: 0 2px 0 #1F4E79;
+  }
+  .resultado button:active { transform: translateY(2px); box-shadow: none; }
+  #resultados { margin-top: 6px; max-height: 260px; overflow-y: auto; }
+
+  /* ---------- Mensagens ---------- */
+  #status, #status-espelho {
+    display: none;
+    border-radius: 8px;
+    padding: 9px 11px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  #status.info, #status-espelho.info { display: block; background: #EAF2FB; color: #1F4E79; border: 1px solid #BFD6EE; }
+  #status.ok, #status-espelho.ok   { display: block; background: #E6F4EC; color: #186B40; border: 1px solid #B7DEC8; }
+  #status.erro, #status-espelho.erro { display: block; background: #FCEBEB; color: #A32D2D; border: 1px solid #F1C2C2; }
+  #status.atencao, #status-espelho.atencao { display: block; background: #FFF6E0; color: #7A5200; border: 1px solid #F0D9A0; }
+  #status ul { margin: 6px 0 8px 18px; }
+  #status li { margin-bottom: 2px; }
+  .spinner {
+    display: inline-block; width: 12px; height: 12px;
+    border: 2px solid #BFD6EE; border-top-color: #1F4E79; border-radius: 50%;
+    animation: girar .7s linear infinite; vertical-align: -2px; margin-right: 6px;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .link-pdf {
+    display: inline-block; margin-top: 8px; padding: 7px 12px;
+    background: #1F4E79; color: #fff; border-radius: 6px;
+    font-weight: 700; font-size: 12px; cursor: pointer; border: none;
+  }
+  .faltando {
+    margin-top: 8px; padding: 7px 9px; border-radius: 6px;
+    background: #FFF6E0; color: #7A5200; border: 1px solid #F0D9A0;
+  }
+
+  /* ---------- Botões de pressão ---------- */
+  .acao {
+    --cor1: #3B82C4; --cor2: #2E6DA8; --sombra: #1F4E79;
+    display: flex; align-items: center; gap: 11px;
+    width: 100%;
+    border: none; border-radius: 12px;
+    padding: 11px 13px;
+    margin-bottom: 13px;
+    background: linear-gradient(180deg, var(--cor1), var(--cor2));
+    color: #fff; text-align: left; cursor: pointer;
+    box-shadow: 0 4px 0 var(--sombra), 0 7px 12px rgba(0,0,0,.14);
+    transform: translateY(0);
+    transition: transform .06s, box-shadow .06s, filter .15s;
+    font-family: inherit;
+  }
+  .acao:hover  { filter: brightness(1.07); }
+  .acao:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--sombra), 0 2px 4px rgba(0,0,0,.14); }
+  .acao:disabled { filter: grayscale(.5) opacity(.55); cursor: wait; transform: none; }
+
+  .acao .num {
+    flex: 0 0 28px; height: 28px; border-radius: 50%;
+    background: rgba(255,255,255,.22);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800;
+  }
+  .acao .txt b     { display: block; font-size: 14px; font-weight: 700; }
+  .acao .txt small { display: block; font-size: 10.5px; opacity: .9; margin-top: 1px; }
+
+  .laranja  { --cor1: #F39A3D; --cor2: #E07B1F; --sombra: #A95A12; }
+  .azul     { --cor1: #3B82C4; --cor2: #2E6DA8; --sombra: #1F4E79; }
+  .verde    { --cor1: #34B36A; --cor2: #23945A; --sombra: #186B40; }
+  .roxo     { --cor1: #8B5CF6; --cor2: #7443E0; --sombra: #5530A8; }
+  .vermelho { --cor1: #EF5350; --cor2: #D93A36; --sombra: #A52724; }
+  .vermelho.confirmar { --cor1: #B71C1C; --cor2: #8E1515; --sombra: #5E0E0E; }
+
+  .secundario {
+    width: 100%; padding: 9px 12px; margin-top: 2px;
+    border: 1.5px solid #2E75B6; border-radius: 10px;
+    background: #fff; color: #1F4E79; font-weight: 700; font-size: 12.5px;
+    cursor: pointer; font-family: inherit;
+  }
+  .secundario + .secundario { margin-top: 8px; }
+  .secundario:hover { background: #EAF2FB; }
+
+  .divisor { border: none; border-top: 1px dashed #C9D3DF; margin: 4px 0 12px; }
+  .rodape  { text-align: center; font-size: 10px; color: #8A96A5; padding: 14px 0 6px; }
+
+  /* ---------- Tela do Espelho CELK ---------- */
+  .voltar {
+    background: none; border: none; color: #1F4E79; font-weight: 700;
+    font-size: 12px; cursor: pointer; margin-bottom: 10px; font-family: inherit;
+  }
+  .titulo-secao { font-size: 14px; font-weight: 700; color: #1F4E79; margin-bottom: 10px; }
+  .arquivo {
+    background: #fff; border: 1px solid #D5DEE8; border-radius: 10px;
+    padding: 10px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .arquivo .nome-arq { flex: 1; font-size: 11.5px; word-break: break-word; }
+  .arquivo button {
+    border: none; border-radius: 8px; padding: 7px 10px;
+    background: linear-gradient(180deg, #F39A3D, #E07B1F); color: #fff;
+    font-weight: 700; font-size: 11.5px; cursor: pointer;
+    box-shadow: 0 3px 0 #A95A12; font-family: inherit;
+  }
+  .arquivo button:active { transform: translateY(2px); box-shadow: 0 1px 0 #A95A12; }
+  .arquivo button:disabled { filter: grayscale(.5) opacity(.55); cursor: wait; }
+  .botoes-confirma { display: flex; gap: 8px; margin-top: 10px; }
+  .botoes-confirma button {
+    flex: 1; border: none; border-radius: 8px; padding: 9px;
+    font-weight: 700; font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  .sim { background: #23945A; color: #fff; }
+  .nao { background: #E0E6EE; color: #374151; }
+  .oculto { display: none; }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <h1>📋 APAC Externa</h1>
+  <p><?= unidade ?></p>
+</div>
+
+<div class="conteudo">
+
+  <!-- ============ TELA PRINCIPAL ============ -->
+  <div id="tela-inicio">
+
+    <div class="cartao">
+      <button class="btn-atualizar" title="Atualizar" onclick="atualizarResumo()">🔄</button>
+      <div class="rotulo">Paciente no formulário</div>
+      <div id="resumo"><div class="vazio">Carregando…</div></div>
+    </div>
+
+    <div class="cartao busca">
+      <div class="rotulo">🔎 Paciente já cadastrado?</div>
+      <input type="text" id="campo-busca" placeholder="Digite nome, CNS ou CPF…" autocomplete="off">
+      <div id="resultados"></div>
+    </div>
+
+    <div id="status"></div>
+
+    <button class="acao laranja" id="b1" onclick="abrirEspelho()">
+      <span class="num">1</span>
+      <span class="txt"><b>📄 Selecionar Espelho CELK</b><small>Ler o PDF do paciente</small></span>
+    </button>
+
+    <button class="acao azul" id="b2" onclick="buscarDadosApac()">
+      <span class="num">2</span>
+      <span class="txt"><b>🤖 Buscar dados da APAC</b><small>Ler o laudo externo com IA</small></span>
+    </button>
+
+    <button class="acao verde" id="b3" onclick="gerarPdf()">
+      <span class="num">3</span>
+      <span class="txt"><b>🖨️ Gerar APAC em PDF</b><small>Salvar no Drive e abrir para imprimir</small></span>
+    </button>
+
+    <button class="acao roxo" id="b4" onclick="salvar()">
+      <span class="num">4</span>
+      <span class="txt"><b>💾 Salvar no Protocolo</b><small>Gravar no Check-list e no Protocolo</small></span>
+    </button>
+
+    <button class="acao vermelho" id="b5" onclick="limpar()">
+      <span class="num">5</span>
+      <span class="txt"><b id="b5-titulo">🗑️ Limpar formulário</b><small id="b5-sub">Deixar pronto para o próximo</small></span>
+    </button>
+
+    <hr class="divisor">
+
+    <button class="secundario" onclick="buscarSigtap()">🔍 Buscar procedimento SIGTAP</button>
+    <button class="secundario" onclick="abrirConferencia()">🧾 Conferir espelhos (SUS · CELK · docs)</button>
+  </div>
+
+  <!-- ============ TELA DO ESPELHO CELK ============ -->
+  <div id="tela-espelho" class="oculto">
+    <button class="voltar" onclick="voltarInicio()">← Voltar ao painel</button>
+    <div class="titulo-secao">📄 Selecionar Espelho CELK</div>
+    <div id="status-espelho"></div>
+    <div id="lista-espelho"></div>
+  </div>
+
+  <div class="rodape">antonioresolve.com.br</div>
+</div>
+
+<script>
+  const MODO_INICIAL = '<?= modo ?>';
+  let ocupado = false;
+  let limparArmado = null;
+
+  // ================= utilidades =================
+  function el(id) { return document.getElementById(id); }
+
+  function status(texto, tipo, alvo) {
+    const box = el(alvo || 'status');
+    box.className = tipo || '';
+    box.innerHTML = texto;
+    box.style.display = tipo ? 'block' : 'none';
+  }
+
+  function travar(sim) {
+    ocupado = sim;
+    ['b1','b2','b3','b4','b5'].forEach(function(id) { el(id).disabled = sim; });
+  }
+
+  function escapar(t) {
+    const d = document.createElement('div');
+    d.textContent = t == null ? '' : String(t);
+    return d.innerHTML;
+  }
+
+  // ================= resumo do paciente =================
+  function atualizarResumo() {
+    google.script.run
+      .withSuccessHandler(function(r) {
+        if (!r || !r.ok) { el('resumo').innerHTML = '<div class="vazio">Não foi possível ler a aba DADOS.</div>'; return; }
+        if (!r.nome) { el('resumo').innerHTML = '<div class="vazio">Nenhum paciente carregado</div>'; return; }
+        let html = '<div class="nome">' + escapar(r.nome) + '</div>';
+        if (r.cns)  html += '<div class="detalhe">CNS ' + escapar(r.cns) + '</div>';
+        if (r.proc) html += '<div class="detalhe">🩺 ' + escapar(r.proc) + (r.data ? ' · ' + escapar(r.data) : '') + '</div>';
+        el('resumo').innerHTML = html;
+      })
+      .withFailureHandler(function() {
+        el('resumo').innerHTML = '<div class="vazio">Não foi possível ler a aba DADOS.</div>';
+      })
+      .obterResumoPainel();
+  }
+
+  // Ao voltar o foco para o painel (ex.: depois de digitar na planilha), atualiza
+  window.addEventListener('focus', function() { if (!ocupado) atualizarResumo(); });
+
+  // ================= Busca de paciente cadastrado =================
+  let timerBusca = null;
+  let ultimaBusca = '';
+
+  el('campo-busca').addEventListener('input', function() {
+    clearTimeout(timerBusca);
+    timerBusca = setTimeout(buscarPaciente, 450);
+  });
+  el('campo-busca').addEventListener('keydown', function(ev) {
+    if (ev.key === 'Enter') { clearTimeout(timerBusca); buscarPaciente(); }
+  });
+
+  function buscarPaciente() {
+    const termo = el('campo-busca').value.trim();
+    const box = el('resultados');
+    if (termo.length < 3) { box.innerHTML = ''; ultimaBusca = ''; return; }
+    if (termo === ultimaBusca) return;
+    ultimaBusca = termo;
+
+    box.innerHTML = '<div class="aviso"><span class="spinner"></span>Procurando…</div>';
+    google.script.run
+      .withSuccessHandler(function(r) {
+        if (termo !== el('campo-busca').value.trim()) return; // já digitou outra coisa
+        if (!r.ok) { box.innerHTML = '<div class="aviso">❌ ' + escapar(r.msg) + '</div>'; return; }
+        if (!r.lista.length) {
+          box.innerHTML = '<div class="aviso">Não cadastrado. Use o <b>① Selecionar Espelho CELK</b>.</div>';
+          return;
+        }
+        box.innerHTML = '';
+        r.lista.forEach(function(p) {
+          const item = document.createElement('div');
+          item.className = 'resultado';
+          item.innerHTML = '<div class="info"><b>' + escapar(p.nome) + '</b>' +
+            '<span>' + (p.nasc ? 'Nasc. ' + escapar(p.nasc) : '') +
+            (p.cns ? (p.nasc ? ' · ' : '') + 'CNS ' + escapar(p.cns) : '') + '</span></div>';
+          const btn = document.createElement('button');
+          btn.textContent = 'Carregar';
+          btn.addEventListener('click', function() { carregarPaciente(p, btn); });
+          item.appendChild(btn);
+          box.appendChild(item);
+        });
+        if (r.total > r.lista.length) {
+          const mais = document.createElement('div');
+          mais.className = 'aviso';
+          mais.textContent = 'Mostrando ' + r.lista.length + ' de ' + r.total + '. Digite mais para refinar.';
+          box.appendChild(mais);
+        }
+      })
+      .withFailureHandler(function(e) { box.innerHTML = '<div class="aviso">❌ ' + escapar(e.message) + '</div>'; })
+      .buscarPacientesPainel(termo);
+  }
+
+  function carregarPaciente(p, btn) {
+    if (ocupado) return;
+    travar(true);
+    btn.disabled = true;
+    status('<span class="spinner"></span>Carregando ' + escapar(p.nome) + '…', 'info');
+    google.script.run
+      .withSuccessHandler(function(r) {
+        travar(false);
+        if (!r.ok) { btn.disabled = false; status('❌ ' + escapar(r.msg), 'erro'); return; }
+        status('✅ ' + escapar(r.nome) + ' carregado no formulário.', 'ok');
+        el('campo-busca').value = '';
+        el('resultados').innerHTML = '';
+        ultimaBusca = '';
+        atualizarResumo();
+      })
+      .withFailureHandler(function(e) { travar(false); btn.disabled = false; status('❌ ' + escapar(e.message), 'erro'); })
+      .carregarPacientePainel(p.linha, p.nome);
+  }
+
+  // ================= ② Buscar dados da APAC =================
+  function buscarDadosApac() {
+    if (ocupado) return;
+    status('<span class="spinner"></span>Abrindo a janela…', 'info');
+    google.script.run
+      .withSuccessHandler(function() { status('Janela aberta. Ao terminar, clique em 🔄 para atualizar o resumo.', 'info'); })
+      .withFailureHandler(function(e) { status('❌ ' + escapar(e.message), 'erro'); })
+      .abrirDialogoSigtap();
+  }
+
+  // ================= ③ Gerar APAC em PDF =================
+  // Primeiro confere os campos obrigatórios; se algo estiver em branco, pergunta antes.
+  function gerarPdf() {
+    if (ocupado) return;
+    travar(true);
+    status('<span class="spinner"></span>Conferindo os campos da APAC…', 'info');
+    google.script.run
+      .withSuccessHandler(function(r) {
+        if (!r.ok) { travar(false); status('❌ ' + escapar(r.msg), 'erro'); return; }
+        if (r.faltando && r.faltando.length) { travar(false); pedirConfirmacaoPdf(r.faltando); return; }
+        executarGerarPdf();
+      })
+      .withFailureHandler(function(e) { travar(false); status('❌ ' + escapar(e.message), 'erro'); })
+      .verificarCamposPdfPainel();
+  }
+
+  function pedirConfirmacaoPdf(lista) {
+    status('⚠️ <b>Campos em branco ou incompletos:</b><ul>' +
+           lista.map(function(c) { return '<li>' + escapar(c) + '</li>'; }).join('') + '</ul>' +
+           'O PDF sairá incompleto. Gerar mesmo assim?' +
+           '<div class="botoes-confirma">' +
+           '<button class="sim" id="pdf-sim">Sim, gerar mesmo assim</button>' +
+           '<button class="nao" id="pdf-nao">Não, vou preencher</button></div>', 'atencao');
+    el('pdf-sim').addEventListener('click', function() { travar(true); executarGerarPdf(); });
+    el('pdf-nao').addEventListener('click', function() { status('', ''); });
+  }
+
+  function executarGerarPdf() {
+    status('<span class="spinner"></span>Gerando a APAC em PDF…', 'info');
+    google.script.run
+      .withSuccessHandler(function(r) {
+        travar(false);
+        if (!r.ok) { status('❌ ' + escapar(r.msg), 'erro'); return; }
+        status('✅ APAC gerada!<br><small>' + escapar(r.nome) + '.pdf</small><br>' +
+               '<button class="link-pdf" id="abrir-pdf">🖨️ Abrir / Imprimir PDF</button>', 'ok');
+        el('abrir-pdf').addEventListener('click', function() { window.open(r.url, '_blank'); });
+      })
+      .withFailureHandler(function(e) { travar(false); status('❌ ' + escapar(e.message), 'erro'); })
+      .gerarPdfApacPainel();
+  }
+
+  // ================= ④ Salvar no Protocolo =================
+  function salvar() {
+    if (ocupado) return;
+    travar(true);
+    status('<span class="spinner"></span>Salvando no Protocolo…', 'info');
+    google.script.run
+      .withSuccessHandler(function(r) {
+        travar(false);
+        status(r.ok ? '✅ ' + escapar(r.msg) : '❌ ' + escapar(r.msg), r.ok ? 'ok' : 'erro');
+      })
+      .withFailureHandler(function(e) { travar(false); status('❌ ' + escapar(e.message), 'erro'); })
+      .salvarNoProtocoloPainel();
+  }
+
+  // ================= ⑤ Limpar (pede confirmação) =================
+  function limpar() {
+    if (ocupado) return;
+
+    if (!limparArmado) {
+      el('b5').classList.add('confirmar');
+      el('b5-titulo').textContent = '⚠️ Clique de novo para limpar';
+      el('b5-sub').textContent = 'Todos os campos serão apagados';
+      limparArmado = setTimeout(desarmarLimpar, 4000);
+      return;
+    }
+
+    desarmarLimpar();
+    travar(true);
+    status('<span class="spinner"></span>Limpando…', 'info');
+    google.script.run
+      .withSuccessHandler(function() {
+        travar(false);
+        status('✨ Formulário limpo. Pronto para o próximo paciente!', 'ok');
+        atualizarResumo();
+      })
+      .withFailureHandler(function(e) { travar(false); status('❌ ' + escapar(e.message), 'erro'); })
+      .limparFormularioPainel();
+  }
+
+  function desarmarLimpar() {
+    clearTimeout(limparArmado);
+    limparArmado = null;
+    el('b5').classList.remove('confirmar');
+    el('b5-titulo').textContent = '🗑️ Limpar formulário';
+    el('b5-sub').textContent = 'Deixar pronto para o próximo';
+  }
+
+  // ================= Buscar SIGTAP e Conferência de Espelhos =================
+  function buscarSigtap() {
+    google.script.run
+      .withFailureHandler(function(e) { status('❌ ' + escapar(e.message), 'erro'); })
+      .abrirBuscaSIGTAPJanela();
+  }
+
+  function abrirConferencia() {
+    google.script.run
+      .withFailureHandler(function(e) { status('❌ ' + escapar(e.message), 'erro'); })
+      .abrirDialogoConferencia();
+  }
+
+  // ================= ① Espelho CELK =================
+  function abrirEspelho() {
+    if (ocupado) return;
+    el('tela-inicio').classList.add('oculto');
+    el('tela-espelho').classList.remove('oculto');
+    el('lista-espelho').innerHTML = '';
+    status('<span class="spinner"></span>Carregando os PDFs da pasta ENTRADA…', 'info', 'status-espelho');
+
+    google.script.run
+      .withSuccessHandler(renderLista)
+      .withFailureHandler(function(e) { status('❌ ' + escapar(e.message), 'erro', 'status-espelho'); })
+      .listarPDFsEntrada();
+  }
+
+  function renderLista(arquivos) {
+    const lista = el('lista-espelho');
+    lista.innerHTML = '';
+
+    if (!arquivos || !arquivos.length) {
+      status('⚠️ Nenhum Espelho CELK (PDF) na pasta ENTRADA.', 'erro', 'status-espelho');
+      return;
+    }
+    status(arquivos.length + ' arquivo(s) encontrado(s).', 'info', 'status-espelho');
+
+    arquivos.forEach(function(arq) {
+      const item = document.createElement('div');
+      item.className = 'arquivo';
+
+      const nome = document.createElement('div');
+      nome.className = 'nome-arq';
+      nome.textContent = '📄 ' + arq.nome;
+
+      const btn = document.createElement('button');
+      btn.textContent = 'Selecionar';
+      btn.addEventListener('click', function() { processar(arq.id, arq.nome); });
+
+      item.appendChild(nome);
+      item.appendChild(btn);
+      lista.appendChild(item);
+    });
+  }
+
+  function processar(id, nome) {
+    document.querySelectorAll('.arquivo button').forEach(function(b) { b.disabled = true; });
+    el('lista-espelho').classList.add('oculto');
+    status('<span class="spinner"></span>Lendo o Espelho CELK…<br><small>Pode levar alguns segundos.</small>', 'info', 'status-espelho');
+
+    google.script.run
+      .withSuccessHandler(function(r) {
+        if (!r.ok) {
+          status(escapar(r.msg), 'erro', 'status-espelho');
+          el('lista-espelho').classList.remove('oculto');
+          document.querySelectorAll('.arquivo button').forEach(function(b) { b.disabled = false; });
+          return;
+        }
+
+        if (r.duplicado) {
+          status('⚠️ ' + escapar(r.nome) + ' já estava cadastrado.<br>O formulário foi carregado automaticamente.' +
+                 '<div class="botoes-confirma"><button class="sim" onclick="voltarInicio()">OK, voltar ao painel</button></div>',
+                 'ok', 'status-espelho');
+          return;
+        }
+
+        // Alarme: campos que o leitor não achou no espelho (ex.: se o CELK mudar o layout)
+        let faltando = '';
+        if (r.avisos && r.avisos.length) {
+          faltando = '<div class="faltando">⚠️ <b>Não encontrei no espelho:</b> ' +
+                     r.avisos.map(escapar).join(', ') +
+                     '.<br><small>Confira o PDF. Se o dado está lá, avise o suporte: o layout do CELK pode ter mudado.</small></div>';
+        }
+
+        status('✅ ' + escapar(r.nome) + ' importado!' + faltando +
+               '<br>Carregar os dados no formulário agora?' +
+               '<div class="botoes-confirma">' +
+               '<button class="sim" id="carregar-sim">✅ Sim, carregar</button>' +
+               '<button class="nao" onclick="voltarInicio()">Não</button></div>',
+               'ok', 'status-espelho');
+
+        el('carregar-sim').addEventListener('click', function() {
+          status('<span class="spinner"></span>Carregando no formulário…', 'info', 'status-espelho');
+          google.script.run
+            .withSuccessHandler(function() { voltarInicio(); status('✅ Paciente carregado no formulário.', 'ok'); })
+            .withFailureHandler(function(e) { status('❌ ' + escapar(e.message), 'erro', 'status-espelho'); })
+            .carregarPacienteNoFormulario(r.cns);
+        });
+      })
+      .withFailureHandler(function(e) {
+        status('❌ Erro inesperado: ' + escapar(e.message), 'erro', 'status-espelho');
+        el('lista-espelho').classList.remove('oculto');
+        document.querySelectorAll('.arquivo button').forEach(function(b) { b.disabled = false; });
+      })
+      .processarPDFselecionado(id, nome);
+  }
+
+  function voltarInicio() {
+    el('tela-espelho').classList.add('oculto');
+    el('tela-inicio').classList.remove('oculto');
+    el('lista-espelho').classList.remove('oculto');
+    status('', '');
+    atualizarResumo();
+  }
+
+  // ================= início =================
+  atualizarResumo();
+  if (MODO_INICIAL === 'espelho') abrirEspelho();
+</script>
+</body>
+</html>

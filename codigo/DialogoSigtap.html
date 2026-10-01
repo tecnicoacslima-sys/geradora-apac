@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #222; padding: 4px 8px; }
+  h3 { font-size: 14px; margin: 0 0 12px; color: #1F4E79; }
+  .upload-area { border: 2px dashed #ccc; border-radius: 6px; padding: 20px 12px; text-align: center; margin-bottom: 10px; background: #fafafa; }
+  .upload-area.has-file { border-style: solid; border-color: #2a6f4f; background: #f0f7f2; }
+  .upload-area p { margin: 0 0 10px; color: #666; font-size: 12px; }
+  .upload-area .fname { color: #2a6f4f; font-weight: bold; font-size: 12px; word-break: break-all; margin-top: 6px; }
+  input[type=file] { display: block; margin: 0 auto; font-size: 12px; color: #2a6f4f; border: 1px solid #2a6f4f; border-radius: 4px; padding: 6px 14px; background: #fff; cursor: pointer; width: auto; }
+  input[type=file]::file-selector-button { background: #2a6f4f; color: #fff; border: none; padding: 5px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-right: 8px; }
+  button.btn-principal { width: 100%; padding: 10px; font-size: 13px; border: 1px solid #2a6f4f; border-radius: 4px; background: #2a6f4f; color: #fff; cursor: pointer; margin-top: 4px; }
+  button.btn-principal:disabled { opacity: 0.45; cursor: not-allowed; background: #999; border-color: #999; }
+  button.btn-secundario { width: 100%; padding: 9px; font-size: 13px; margin-top: 8px; border: 1px solid #2a6f4f; border-radius: 4px; background: #fff; color: #2a6f4f; cursor: pointer; }
+  button.btn-geradora { width: 100%; padding: 10px; font-size: 13px; margin-top: 8px; border: none; border-radius: 4px; background: #e65c00; color: #fff; cursor: pointer; font-weight: bold; }
+  button.btn-geradora:disabled { opacity: 0.45; cursor: not-allowed; background: #999; }
+  button.btn-geradora:hover:not(:disabled) { background: #bf4c00; }
+  #status { margin-top: 10px; font-size: 12px; min-height: 18px; }
+  #status.erro { color: #a33; }
+  #status.sucesso { color: #0f6e56; font-weight: bold; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #ccc; border-top-color: #2a6f4f; border-radius: 50%; animation: girar 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .resultado { margin-top: 14px; display: none; }
+  .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-bottom: 12px; }
+  .badge-ok      { background: #e1f5ee; color: #0f6e56; }
+  .badge-div     { background: #fcebeb; color: #a32d2d; }
+  .badge-atencao { background: #faeeda; color: #854f0b; }
+  .badge-nc      { background: #eee;    color: #555;    }
+  .secao-titulo { font-size: 11px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 4px; }
+  .campo-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; font-size: 12px; }
+  .campo-row .label { color: #888; flex-shrink: 0; }
+  .campo-row .valor { font-weight: bold; text-align: right; max-width: 62%; word-break: break-word; }
+  .campo-row .valor.oficial { color: #555; font-weight: normal; font-style: italic; }
+  .campo-row .valor.conf-revisar { color: #a33; }
+  .campo-row .valor.conf-ok { color: #0f6e56; }
+  .mensagem-box { margin-top: 10px; padding: 10px 12px; background: #f7f7f7; border-radius: 4px; font-size: 12px; line-height: 1.55; color: #444; }
+  .editar-bloco { margin-top: 10px; padding: 10px 12px; background: #fff8f0; border: 1px solid #e65c00; border-radius: 6px; display: none; }
+  .editar-bloco label { font-size: 11px; color: #555; display: block; margin-bottom: 2px; margin-top: 8px; }
+  .editar-bloco label:first-child { margin-top: 0; }
+  .editar-bloco input { width: 100%; padding: 5px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+  .editar-bloco input:focus { border-color: #e65c00; outline: none; }
+  .editar-bloco .bloco-titulo { font-size: 12px; font-weight: bold; color: #e65c00; margin-bottom: 6px; }
+  .editar-bloco .separador { border: none; border-top: 1px dashed #e6c9a8; margin: 10px 0 4px; }
+</style>
+</head>
+<body>
+
+<h3>🤖 Buscar dados da APAC</h3>
+
+<div id="formulario">
+  <div class="upload-area" id="zone-upload">
+    <p>Selecione o PDF do laudo da APAC externa</p>
+    <input type="file" id="input-pdf" accept="application/pdf" onchange="aoSelecionarArquivo(this)">
+    <div class="fname" id="fname"></div>
+  </div>
+  <button class="btn-principal" id="btn-conferir" onclick="iniciarConferencia()" disabled>Ler laudo e conferir código</button>
+  <div id="status"></div>
+</div>
+
+<div class="resultado" id="resultado">
+  <div id="badge-status"></div>
+
+  <div class="secao-titulo">Dados do laudo</div>
+  <div class="campo-row"><span class="label">Paciente</span><span class="valor" id="r-paciente">-</span></div>
+  <div class="campo-row"><span class="label">Procedimento (laudo)</span><span class="valor" id="r-procedimento">-</span></div>
+  <div class="campo-row"><span class="label">Código no laudo</span><span class="valor" id="r-codigo-laudo">-</span></div>
+  <div class="campo-row" id="row-nome-oficial" style="display:none">
+    <span class="label">Nome oficial SIGTAP</span><span class="valor oficial" id="r-nome-oficial">-</span>
+  </div>
+  <div class="campo-row"><span class="label">CID do laudo</span><span class="valor" id="r-cid">-</span></div>
+  <div class="campo-row"><span class="label">Médico solicitante</span><span class="valor" id="r-medico">-</span></div>
+  <div class="campo-row"><span class="label">Estabelecimento</span><span class="valor" id="r-estabelecimento">-</span></div>
+
+  <div class="secao-titulo">Referência local</div>
+  <div class="campo-row"><span class="label">Código de referência</span><span class="valor" id="r-codigo-ref">-</span></div>
+  <div class="campo-row"><span class="label">Confiança do registro</span><span class="valor" id="r-confianca">-</span></div>
+
+  <div class="mensagem-box" id="r-mensagem"></div>
+
+  <div class="editar-bloco" id="bloco-editar">
+    <div class="bloco-titulo">✏️ Confirme os dados antes de preencher o formulário</div>
+
+    <label>Código do procedimento</label>
+    <input type="text" id="edit-codigo" maxlength="10">
+    <label>Nome do procedimento</label>
+    <input type="text" id="edit-nome">
+    <label>CID-10 principal</label>
+    <input type="text" id="edit-cid" maxlength="10">
+    <label>Descrição do diagnóstico</label>
+    <input type="text" id="edit-descricao">
+    <label>Observações</label>
+    <input type="text" id="edit-observacoes">
+
+    <hr class="separador">
+
+    <label>Data da solicitação (DD/MM/AAAA)</label>
+    <input type="text" id="edit-data-solicitacao" maxlength="10" placeholder="Ex: 31/10/2025">
+    <label>Profissional solicitante da APAC externa</label>
+    <input type="text" id="edit-medico-solicitante">
+    <label>Estabelecimento solicitante da APAC externa (deixe em branco se não houver)</label>
+    <input type="text" id="edit-estabelecimento-solicitante">
+  </div>
+
+  <button class="btn-geradora" id="btn-geradora" onclick="preencherGeradora()" style="display:none">
+    🖊️ Preencher formulário na aba DADOS
+  </button>
+
+  <div id="status-resultado" style="margin-top:10px; font-size:12px; min-height:18px;"></div>
+
+  <button class="btn-secundario" onclick="novaConferencia()">Ler outro laudo</button>
+</div>
+
+<script>
+  let arquivoSelecionado = null;
+
+  function aoSelecionarArquivo(input) {
+    const file = input.files[0];
+    if (!file) return;
+    arquivoSelecionado = file;
+    document.getElementById('zone-upload').classList.add('has-file');
+    document.getElementById('fname').textContent = '📄 ' + file.name;
+    document.getElementById('btn-conferir').disabled = false;
+  }
+
+  function toBase64(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('Falha ao ler arquivo'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  function mostrarStatus(texto, tipo) {
+    const emResultado = document.getElementById('resultado').style.display !== 'none';
+    const el = document.getElementById(emResultado ? 'status-resultado' : 'status');
+    el.className = tipo || '';
+    el.innerHTML = texto;
+  }
+
+  async function iniciarConferencia() {
+    if (!arquivoSelecionado) return;
+    document.getElementById('btn-conferir').disabled = true;
+    mostrarStatus('<span class="spinner"></span>Lendo o laudo com IA...', '');
+    try {
+      const base64 = await toBase64(arquivoSelecionado);
+      google.script.run
+        .withSuccessHandler(aoConcluir)
+        .withFailureHandler(err => {
+          mostrarStatus('Erro: ' + err.message, 'erro');
+          document.getElementById('btn-conferir').disabled = false;
+        })
+        .conferirCodigoSigtap(base64, arquivoSelecionado.name);
+    } catch (err) {
+      mostrarStatus('Erro: ' + err.message, 'erro');
+      document.getElementById('btn-conferir').disabled = false;
+    }
+  }
+
+  function aoConcluir(r) {
+    mostrarStatus('', '');
+    document.getElementById('formulario').style.display = 'none';
+    document.getElementById('resultado').style.display  = 'block';
+
+    const badges = {
+      ok:             ['✅ Código confere',                    'badge-ok'],
+      divergente:     ['❌ Código divergente',                 'badge-div'],
+      codigo_ausente: ['⚠️ Código ausente — sugestão abaixo',  'badge-atencao'],
+      nao_catalogado: ['⚪ Procedimento não catalogado',        'badge-nc']
+    };
+    const [texto, cls] = badges[r.status] || ['⚠️ Verificar', 'badge-atencao'];
+    document.getElementById('badge-status').innerHTML =
+      '<span class="badge ' + cls + '">' + texto + '</span>';
+
+    document.getElementById('r-paciente').textContent        = r.paciente              || '—';
+    document.getElementById('r-procedimento').textContent    = r.procedimento_laudo    || '—';
+    document.getElementById('r-codigo-laudo').textContent    = r.codigo_laudo          || '— (ausente no laudo)';
+    document.getElementById('r-cid').textContent             = r.cid_laudo             || '—';
+    document.getElementById('r-medico').textContent          = r.medico_solicitante    || '—';
+    document.getElementById('r-estabelecimento').textContent = r.estabelecimento_solicitante || '—';
+    document.getElementById('r-codigo-ref').textContent      = r.codigo_referencia     || '— (não catalogado)';
+
+    if (r.nome_oficial_sigtap) {
+      document.getElementById('r-nome-oficial').textContent     = r.nome_oficial_sigtap;
+      document.getElementById('row-nome-oficial').style.display = 'flex';
+    }
+
+    const confEl = document.getElementById('r-confianca');
+    const conf   = r.confianca_referencia || '—';
+    confEl.textContent = conf;
+    confEl.className   = 'valor';
+    if (conf.includes('REVISAR'))   confEl.classList.add('conf-revisar');
+    else if (conf.includes('Conf')) confEl.classList.add('conf-ok');
+
+    document.getElementById('r-mensagem').textContent = r.mensagem || '';
+
+    const codigoParaUsar = (r.status === 'ok' || r.status === 'codigo_ausente')
+      ? (r.codigo_referencia || r.codigo_laudo || '')
+      : (r.codigo_laudo || '');
+    const nomeParaUsar = r.nome_oficial_sigtap || r.procedimento_laudo || '';
+
+    if (codigoParaUsar || r.cid_laudo) {
+      document.getElementById('edit-codigo').value                      = codigoParaUsar;
+      document.getElementById('edit-nome').value                        = nomeParaUsar;
+      document.getElementById('edit-cid').value                         = r.cid_laudo || '';
+      document.getElementById('edit-descricao').value                   = r.descricao_diagnostico || r.procedimento_laudo || '';
+      document.getElementById('edit-observacoes').value                 = r.observacoes || '';
+      document.getElementById('edit-data-solicitacao').value            = r.data_solicitacao || '';
+      document.getElementById('edit-medico-solicitante').value          = r.medico_solicitante || '';
+      document.getElementById('edit-estabelecimento-solicitante').value = r.estabelecimento_solicitante || '';
+
+      document.getElementById('bloco-editar').style.display = 'block';
+      document.getElementById('btn-geradora').style.display = 'block';
+
+      if (r.status === 'divergente' || r.status === 'nao_catalogado') {
+        document.getElementById('btn-geradora').textContent = '⚠️ Preencher formulário (revisar código antes)';
+      } else {
+        document.getElementById('btn-geradora').textContent = '🖊️ Preencher formulário na aba DADOS';
+      }
+    }
+  }
+
+  function preencherGeradora() {
+    const codigo                     = document.getElementById('edit-codigo').value.trim();
+    const nome                       = document.getElementById('edit-nome').value.trim();
+    const cid                        = document.getElementById('edit-cid').value.trim();
+    const descricao                  = document.getElementById('edit-descricao').value.trim();
+    const observacoes                = document.getElementById('edit-observacoes').value.trim();
+    const dataSolicitacao            = document.getElementById('edit-data-solicitacao').value.trim();
+    const medicoSolicitante          = document.getElementById('edit-medico-solicitante').value.trim();
+    const estabelecimentoSolicitante = document.getElementById('edit-estabelecimento-solicitante').value.trim();
+
+    if (!codigo && !cid) {
+      mostrarStatus('Preencha ao menos o código ou o CID antes de enviar.', 'erro');
+      return;
+    }
+
+    document.getElementById('btn-geradora').disabled = true;
+    mostrarStatus('<span class="spinner"></span>Preenchendo o formulário...', '');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.ok) {
+          mostrarStatus('✅ Formulário preenchido! Confira as seções Procedimento, Justificativa e Solicitação da APAC externa na aba DADOS.', 'sucesso');
+          document.getElementById('btn-geradora').style.display = 'none';
+          document.getElementById('bloco-editar').style.display = 'none';
+        } else {
+          mostrarStatus('Erro: ' + res.msg, 'erro');
+          document.getElementById('btn-geradora').disabled = false;
+        }
+      })
+      .withFailureHandler(function(err) {
+        mostrarStatus('Erro inesperado: ' + err.message, 'erro');
+        document.getElementById('btn-geradora').disabled = false;
+      })
+      .preencherGeradora({
+        codigo,
+        nomeProcedimento:          nome,
+        cid,
+        descricaoDiagnostico:      descricao,
+        observacoes,
+        dataSolicitacao,
+        medicoSolicitante,
+        estabelecimentoSolicitante
+      });
+  }
+
+  function novaConferencia() {
+    arquivoSelecionado = null;
+    document.getElementById('input-pdf').value                         = '';
+    document.getElementById('zone-upload').classList.remove('has-file');
+    document.getElementById('fname').textContent                       = '';
+    document.getElementById('btn-conferir').disabled                  = true;
+    document.getElementById('resultado').style.display                = 'none';
+    document.getElementById('formulario').style.display               = 'block';
+    document.getElementById('bloco-editar').style.display             = 'none';
+    document.getElementById('btn-geradora').style.display             = 'none';
+    document.getElementById('btn-geradora').disabled                  = false;
+    document.getElementById('row-nome-oficial').style.display         = 'none';
+    document.getElementById('status').innerHTML                       = '';
+    document.getElementById('status-resultado').innerHTML             = '';
+    document.getElementById('edit-observacoes').value                 = '';
+    document.getElementById('edit-data-solicitacao').value            = '';
+    document.getElementById('edit-medico-solicitante').value          = '';
+    document.getElementById('edit-estabelecimento-solicitante').value = '';
+  }
+</script>
+</body>
+</html>

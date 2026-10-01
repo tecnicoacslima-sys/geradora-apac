@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #222; padding: 4px 8px; }
+  h3 { font-size: 14px; margin: 0 0 12px; color: #1F4E79; }
+  .campo-grupo { margin-bottom: 14px; }
+  label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 12px; }
+  select { width: 100%; padding: 6px; font-size: 12px; }
+  .opcional { font-weight: normal; color: #888; font-size: 11px; }
+  .botoes { margin-top: 18px; display: flex; gap: 8px; }
+  button { flex: 1; padding: 10px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; background: #f7f7f7; cursor: pointer; }
+  button.principal { flex: 2; background: #1F4E79; color: #fff; border-color: #1F4E79; font-weight: bold; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #status { margin-top: 12px; font-size: 12px; min-height: 18px; }
+  #status.erro { color: #a33; }
+  #status.sucesso { color: #1F4E79; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #ccc; border-top-color: #1F4E79; border-radius: 50%; animation: girar 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .resultado-box { margin-top: 14px; padding: 10px; background: #EAF2FB; border: 1px solid #BFD6EE; border-radius: 4px; font-size: 12px; }
+  .resultado-box a { color: #1F4E79; font-weight: bold; }
+  .aviso { font-size: 11px; color: #666; margin-top: 10px; line-height: 1.45; }
+</style>
+</head>
+<body>
+
+<h3>🧾 Conferir espelhos — SUS · CELK · documentos</h3>
+
+<div id="formulario">
+  <div class="campo-grupo">
+    <label>Espelho SUS / CADSUS</label>
+    <select id="sel-sus"><option value="">Carregando...</option></select>
+  </div>
+
+  <div class="campo-grupo">
+    <label>Ficha CELK</label>
+    <select id="sel-celk"><option value="">Carregando...</option></select>
+  </div>
+
+  <div class="campo-grupo">
+    <label>Documento de Identidade <span class="opcional">(RG, CNH — opcional)</span></label>
+    <select id="sel-doc"><option value="">Carregando...</option></select>
+  </div>
+
+  <div class="campo-grupo">
+    <label>Comprovante de Endereço <span class="opcional">(opcional)</span></label>
+    <select id="sel-comp"><option value="">Carregando...</option></select>
+  </div>
+
+  <div class="aviso" id="aviso-pasta">Selecione pelo menos 2 documentos.</div>
+
+  <div class="botoes">
+    <button id="btn-atualizar" onclick="carregarArquivos()" title="Ler a pasta de novo">🔄 Atualizar lista</button>
+    <button id="btn-comparar" class="principal" onclick="iniciarComparacao()" disabled>Comparar e gerar relatório</button>
+  </div>
+
+  <div id="status"></div>
+  <div id="resultado" style="display:none;" class="resultado-box"></div>
+</div>
+
+<script>
+  var SELECTS = ['sel-sus', 'sel-celk', 'sel-doc', 'sel-comp'];
+
+  function el(id) { return document.getElementById(id); }
+
+  function carregarArquivos() {
+    el('btn-atualizar').disabled = true;
+    google.script.run
+      .withSuccessHandler(popularSelects)
+      .withFailureHandler(function(erro) {
+        el('btn-atualizar').disabled = false;
+        mostrarStatus('Erro ao listar arquivos: ' + erro.message, 'erro');
+      })
+      .listarPdfsConferencia();
+  }
+
+  function popularSelects(res) {
+    var lista = res.arquivos || [];
+
+    SELECTS.forEach(function(id) {
+      var select = el(id);
+      var anterior = select.value;               // mantém a escolha ao atualizar a lista
+      select.innerHTML = '';
+
+      var vazio = document.createElement('option');
+      vazio.value = '';
+      vazio.textContent = '— Nenhum —';
+      select.appendChild(vazio);
+
+      lista.forEach(function(arq) {
+        var opt = document.createElement('option');
+        opt.value = arq.id;
+        opt.textContent = arq.nome;
+        select.appendChild(opt);
+      });
+
+      if (anterior && lista.some(function(a) { return a.id === anterior; })) select.value = anterior;
+    });
+
+    el('aviso-pasta').textContent = lista.length
+      ? 'Os PDFs vêm da pasta "' + res.pasta + '" do Drive. Selecione pelo menos 2 documentos.'
+      : 'Nenhum PDF na pasta "' + res.pasta + '". Salve os documentos lá e clique em Atualizar lista.';
+
+    mostrarStatus('', '');
+    el('btn-atualizar').disabled = false;
+    el('btn-comparar').disabled = false;
+  }
+
+  function mostrarStatus(texto, tipo) {
+    var box = el('status');
+    box.className = tipo || '';
+    box.innerHTML = texto;
+  }
+
+  function iniciarComparacao() {
+    var selecao = {
+      sus: el('sel-sus').value || null,
+      celk: el('sel-celk').value || null,
+      doc_identidade: el('sel-doc').value || null,
+      comprovante_endereco: el('sel-comp').value || null
+    };
+
+    var preenchidos = Object.keys(selecao).filter(function(k) { return selecao[k]; });
+    if (preenchidos.length < 2) {
+      mostrarStatus('Selecione pelo menos 2 documentos para comparar.', 'erro');
+      return;
+    }
+
+    el('btn-comparar').disabled = true;
+    el('btn-atualizar').disabled = true;
+    el('resultado').style.display = 'none';
+    mostrarStatus('<span class="spinner"></span>Analisando os documentos com IA. Isso pode levar até 1 minuto...', '');
+
+    google.script.run
+      .withSuccessHandler(aoConcluir)
+      .withFailureHandler(function(erro) {
+        mostrarStatus('Erro: ' + erro.message, 'erro');
+        el('btn-comparar').disabled = false;
+        el('btn-atualizar').disabled = false;
+      })
+      .processarConferencia(selecao);
+  }
+
+  function aoConcluir(resultado) {
+    mostrarStatus('', '');
+    el('btn-comparar').disabled = false;
+    el('btn-atualizar').disabled = false;
+
+    var box = el('resultado');
+    box.style.display = 'block';
+    box.innerHTML = '';
+
+    var msg = document.createElement('div');
+    msg.textContent = resultado.mensagem;
+    box.appendChild(msg);
+
+    var link = document.createElement('a');
+    link.href = resultado.urlPdf;
+    link.target = '_blank';
+    link.textContent = 'Abrir relatório em PDF';
+
+    var p = document.createElement('p');
+    p.style.marginTop = '10px';
+    p.appendChild(link);
+    p.appendChild(document.createTextNode(' — use Ctrl+P na aba que abrir para imprimir.'));
+    box.appendChild(p);
+  }
+
+  carregarArquivos();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #1F2937; margin: 0; padding: 4px 12px 12px; }
+  .intro { background: #EAF2FB; border: 1px solid #BFD6EE; color: #1F4E79; border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.5; margin-bottom: 14px; }
+  label { display: block; font-size: 11px; font-weight: bold; color: #5B6776; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: .4px; }
+  input { width: 100%; padding: 8px 10px; font-size: 13px; border: 1px solid #B8C4D2; border-radius: 6px; font-family: inherit; }
+  input:focus { border-color: #2E75B6; outline: none; background: #F8FBFE; }
+  .linha { display: flex; gap: 10px; }
+  .linha > div { flex: 1; }
+  .linha > div.uf { flex: 0 0 80px; }
+  .dica { font-size: 11px; color: #6B7B8A; margin-top: 4px; }
+  details { margin-top: 12px; font-size: 12px; color: #5B6776; }
+  details summary { cursor: pointer; }
+  button { width: 100%; margin-top: 16px; padding: 11px; font-size: 14px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; background: #1F4E79; color: #fff; }
+  button:disabled { background: #9AA7B5; cursor: wait; }
+  #status { margin-top: 12px; font-size: 12px; line-height: 1.5; }
+  .erro-box { background: #FCEBEB; border: 1px solid #F1C2C2; color: #A32D2D; padding: 10px; border-radius: 6px; }
+  .passo { padding: 6px 0; border-bottom: 1px solid #EDF1F6; }
+  .passo.ok { color: #186B40; }
+  .passo.aviso { color: #7A5200; }
+  .passo.erro { color: #A32D2D; font-weight: bold; }
+  .final { margin-top: 10px; padding: 10px; border-radius: 6px; font-weight: bold; }
+  .final.ok { background: #E6F4EC; color: #186B40; border: 1px solid #B7DEC8; }
+  .final.erro { background: #FFF6E0; color: #7A5200; border: 1px solid #F0D9A0; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #BFD6EE; border-top-color: #1F4E79; border-radius: 50%; animation: g .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes g { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+  <div class="intro" id="intro">
+    Preencha os dados da sua unidade e o <b>código de acesso</b> que o suporte enviou.
+    Depois clique em <b>Concluir</b>: a planilha faz o resto sozinha.
+  </div>
+
+  <div id="formulario">
+    <label for="unidade">Nome da unidade</label>
+    <input id="unidade" placeholder="Ex.: ESF Jardim Primavera II" autocomplete="off">
+
+    <div class="linha">
+      <div>
+        <label for="municipio">Município</label>
+        <input id="municipio" placeholder="Ex.: Nova Mutum" autocomplete="off">
+      </div>
+      <div class="uf">
+        <label for="uf">UF</label>
+        <input id="uf" maxlength="2" placeholder="MT" autocomplete="off" style="text-transform:uppercase">
+      </div>
+    </div>
+
+    <label for="codigo">Código de acesso à IA</label>
+    <input id="codigo" placeholder="APAC-…" autocomplete="off" spellcheck="false">
+    <div class="dica" id="dica-codigo">Cole o código exatamente como recebeu (começa com "APAC-").</div>
+
+    <details>
+      <summary>Endereço do servidor de IA (já preenchido)</summary>
+      <input id="url" style="margin-top:6px; font-size:11px" spellcheck="false">
+      <div class="dica">Só mude se o suporte pedir.</div>
+    </details>
+
+    <button id="btn" onclick="concluir()">Concluir</button>
+  </div>
+
+  <div id="status"></div>
+
+<script>
+  function el(id) { return document.getElementById(id); }
+  function esc(t) { var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+
+  google.script.run
+    .withSuccessHandler(function(d) {
+      el('unidade').value   = d.unidade;
+      el('municipio').value = d.municipio;
+      el('uf').value        = d.uf;
+      el('url').value       = d.url;
+      if (d.temCodigo) {
+        el('codigo').placeholder = '(já configurado: deixe em branco para manter)';
+        el('dica-codigo').textContent = 'Só preencha se recebeu um código novo.';
+      }
+      if (d.configurado) {
+        el('intro').innerHTML = 'Esta planilha <b>já está configurada</b>. Altere o que precisar e clique em <b>Concluir</b>.';
+      }
+      el('unidade').focus();
+    })
+    .dadosAssistente();
+
+  function concluir() {
+    var dados = {
+      unidade:   el('unidade').value,
+      municipio: el('municipio').value,
+      uf:        el('uf').value,
+      codigo:    el('codigo').value,
+      url:       el('url').value
+    };
+    el('btn').disabled = true;
+    el('btn').textContent = 'Configurando… aguarde';
+    el('status').innerHTML = '<span class="spinner"></span>Criando pastas, instalando e testando a IA. Leva até 1 minuto…';
+
+    google.script.run
+      .withSuccessHandler(mostrarResultado)
+      .withFailureHandler(function(e) {
+        el('status').innerHTML = '<div class="erro-box">❌ ' + esc(e.message) + '</div>';
+        el('btn').disabled = false;
+        el('btn').textContent = 'Concluir';
+      })
+      .concluirAssistente(dados);
+  }
+
+  function mostrarResultado(r) {
+    var icone = { ok: '✅', aviso: '⚠️', erro: '❌' };
+    var h = r.passos.map(function(p) {
+      return '<div class="passo ' + p.tipo + '">' + icone[p.tipo] + ' ' + esc(p.texto) + '</div>';
+    }).join('');
+
+    if (r.tudoOk) {
+      h += '<div class="final ok">🎉 Tudo pronto!<br>' +
+           '<span style="font-weight:normal">Feche esta janela e recarregue a planilha (tecla F5). ' +
+           'O painel da APAC vai abrir sozinho.</span></div>';
+      el('formulario').style.display = 'none';
+    } else {
+      h += '<div class="final erro">Quase lá. Corrija o item marcado com ❌ e clique em Concluir de novo.</div>';
+      el('btn').disabled = false;
+      el('btn').textContent = 'Concluir';
+      el('codigo').value = '';
+    }
+    el('status').innerHTML = h;
+  }
+</script>
+</body>
+</html>
