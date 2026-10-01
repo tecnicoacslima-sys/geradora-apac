@@ -1,10 +1,8 @@
 {
-  "versao": "2.5",
+  "versao": "2.5.1",
   "data": "01/10/2026",
   "novidades": [
-    "🔄 Novo: Atualizar sistema pelo menu 🔧 Ferramentas, com cópia de segurança e opção de voltar.",
-    "Aviso ao abrir a planilha quando houver versão nova.",
-    "O painel confere e instala os gatilhos sozinho."
+    "🧪 Versão de teste do botão Atualizar sistema (só muda o número da versão)."
   ],
   "arquivos": [
     {
